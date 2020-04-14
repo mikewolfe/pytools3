@@ -51,9 +51,9 @@ class BedEntry(object):
 
 
     def __setitem__(self, key, item):
-        if isinstance(key, (int, long)):
+        if isinstance(key, int):
             if key >= len(self):
-                while len(self) < key:
+                while len(self) < key +1:
                     self.field_data.append(".")
             self.field_data[key] = item
         elif isinstance(key, str):
