@@ -65,7 +65,10 @@ class FastaEntry(object):
     def set_header(self, header):
         self.header = header
 
-    def set_seq(self, seq):
+    def set_seq(self, seq, rm_na=None):
+        if rm_na:
+            for key in rm_na.keys():
+                seq = [rm_na[key] if x == key else float(x) for x in seq]
         self.seq = seq
 
     def __len__(self):
@@ -194,6 +197,44 @@ class FastaFile(object):
         curr_entry.set_seq(''.join(curr_seq))
         self.data[curr_entry.chrm_name()] = curr_entry
         self.names.append(curr_entry.chrm_name())
+
+    def read_whole_datafile(self, fhandle, delim=","):
+        """
+        Read an entire fasta file into memory and store it in the data attribute
+        of FastaFile. This handles comma seperated data in place of sequence
+
+        Args:
+            fhandle (File)    : A python file handle set with mode set to read
+        Returns:
+            None
+
+        Raises:
+            ValueError: If fasta file does not start with a header ">"
+        """
+        import numpy as np 
+        line = fhandle.readline().strip()
+        if line[0] != ">":
+            raise ValueError("File is missing initial header!")
+        else:
+            curr_entry = FastaEntry(header = line.rstrip().split()[0])
+        line = fhandle.readline().strip()
+        curr_seq = []
+        while line != '':
+            if line[0] == ">":
+                curr_entry.set_seq(curr_seq, rm_na={"NA":np.nan})
+                self.data[curr_entry.chrm_name()] = curr_entry
+                self.names.append(curr_entry.chrm_name())
+                curr_seq = []
+                curr_entry = FastaEntry(line)
+            else:
+                line = line.split(delim)
+                curr_seq.extend(line)
+            
+            line = fhandle.readline().strip()
+
+        curr_entry.set_seq(curr_seq, rm_na={"NA":np.nan})
+        self.data[curr_entry.chrm_name()] = curr_entry
+        self.names.append(curr_entry.chrm_name()) 
 
     def pull_entry(self, chrm):
         """
