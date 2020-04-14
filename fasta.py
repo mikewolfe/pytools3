@@ -120,7 +120,7 @@ class FastaEntry(object):
         if rc:
             return complement(seq)[::-1]
         else:
-            return seq.upper()
+            return seq
 
     def chrm_name(self):
         """
