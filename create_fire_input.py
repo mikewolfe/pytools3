@@ -206,9 +206,7 @@ if __name__ == "__main__":
     # already spanned (thus cannot be overlapped with random intervals)
     if args.nrand > 0:
         excluded_search = ExcludedSearch()
-        if args.allow_true_overlap:
-            continue
-        else:
+        if not args.allow_true_overlap:
             for feature in inbed:
                 this_chrm = genome.pull_entry(feature["chrm"])
                 this_start, this_end, this_rc = determine_start_end(feature, this_chrm, args)
