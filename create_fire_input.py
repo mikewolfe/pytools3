@@ -169,6 +169,10 @@ if __name__ == "__main__":
             help="write a bed file for the random peaks?")
     parser.add_argument('--true_bed', action = "store_true",
             help="write a bed file for the true peaks?")
+    parser.add_argument('--allow_rand_overlap', action = "store_true",
+            help="allow random peaks to overlap? Default no overlap")
+    parser.add_argument('--allow_true_overlap', action = "store_true",
+            help="allow random peaks to overlap true peaks? Default no overlap")
 
 
     # parse arguments
@@ -202,12 +206,14 @@ if __name__ == "__main__":
     # already spanned (thus cannot be overlapped with random intervals)
     if args.nrand > 0:
         excluded_search = ExcludedSearch()
-        for feature in inbed:
-            this_chrm = genome.pull_entry(feature["chrm"])
-            this_start, this_end, this_rc = determine_start_end(feature, this_chrm, args)
-            this_wsize = round((this_end - this_start)/2)
-            excluded_search.add_interval(feature["chrm"], 
-                    this_start - this_wsize, this_end+this_wsize)
+        if args.allow_true_overlap:
+            continue
+        else:
+            for feature in inbed:
+                this_chrm = genome.pull_entry(feature["chrm"])
+                this_start, this_end, this_rc = determine_start_end(feature, this_chrm, args)
+                excluded_search.add_interval(feature["chrm"], 
+                        this_start, this_end)
 
     for i, feature in enumerate(inbed):
         this_entry = fa.FastaEntry()
@@ -248,9 +254,9 @@ if __name__ == "__main__":
             this_rand.set_header(">"+this_rand_name)
             outfasta.add_entry(this_rand)
             fakefire.add_entry(this_rand.chrm_name(), args.rand_score)
-
-            excluded_search.add_interval(feature["chrm"], 
-                    this_loc-this_wsize, this_loc+this_wsize)
+            if not args.allow_rand_overlap:
+                excluded_search.add_interval(feature["chrm"], 
+                        this_loc-this_wsize, this_loc+this_wsize)
 
             if args.rand_bed:
                 rand_bed.add_entry(
