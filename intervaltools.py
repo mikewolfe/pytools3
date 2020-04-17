@@ -13,11 +13,37 @@ class Interval(object):
         self.end = end
         self.value = value
 
+    def __len__(self):
+        return self.end - self.start
+
     def __repr__(self):
         return "<Interval object %s; %s-%s; %s>"%(hex(id(self)), self.start, self.end, self.value)
 
     def overlap(self, other):
         return overlap((self.start, self.end), (other.start, other.end))
+
+    def merge(self, other):
+        self.start = min(self.start, other.start)
+        self.end = max(self.end, other.end)
+
+    def percent_overlap(self, other, denominator = "self", num_only = False):
+        out_val = 0
+        if self.overlap(other):
+            num = min((self.end, other.end)) - max((self.start, other.start))
+        else:
+            num = 0
+        if num_only:
+            out_val = num
+        else:
+            if denominator == "self":
+                denom = len(self)
+            elif denominator == "other":
+                denom = len(other)
+            else:
+                denom = len(self) + len(other)
+            out_val = num/denom
+        return out_val
+
 
 
 class Intervals(object):
@@ -47,6 +73,14 @@ class Intervals(object):
             if sinterval.overlap(ointerval):
                 return True
         return False
+
+    def check_percent_overlap(self, ointerval):
+        '''Assumes no intervals overlap in self'''
+        total_overlap = 0
+        for sinterval in self:
+            if sinterval.overlap(ointerval):
+                total_overlap += sinterval.percent_overlap(ointerval, num_only = True)
+        return total_overlap/len(ointerval)
 
     def to_array(self, array=None,  array_length=None):
         if array is None and array_length is None:

@@ -139,6 +139,99 @@ class ExcludedSearch(object):
         return val
 
 
+def discretize_genome(wsize, stepsize, genome):
+    out_bed = bed.BedFile()
+    for chrm in genome:
+        chrm_name = chrm.chrm_name()
+        for i in range(0, len(chrm)-wsize, stepsize):
+            start = i
+            end = i + wsize
+            name = "%s_%i_%i"%(chrm_name, start, end) 
+            out_bed.add_entry(bed.BedEntry([chrm_name, start, end, name, 0]))
+    return out_bed
+
+
+
+def dense_sampling_main(args):
+
+    # parse arguments
+    args = parser.parse_args()
+    # figure out random seed
+    np.random.seed(args.seed)
+    # read in genome
+    genome = fa.FastaFile()
+    logging.warning("reading in full genome")
+    with open(args.fasta) as inf:
+        genome.read_whole_file(inf)
+
+    # read in bed file
+    inbed = bed.BedFile()
+    logging.warning("reading in bed")
+    inbed.from_bed_file(args.bedfile)
+
+    # discretize the genome by size of window and step of window
+    outbed = discretize_genome(args.wsize, args.stepsize, genome)
+
+    # convert input bed to an interval file by chromosome
+    intervals = {chrm.chrm_name() : it.Intervals() for chrm in genome}
+
+    for feature in inbed:
+        this_interval = intervals[feature["chrm"]]
+        this_interval.add_interval(it.Interval(feature["start"], feature["end"]))
+        intervals[feature["chrm"]] = this_interval
+
+    # figure out which intervals overlap and which don't
+
+    logging.warning("determining which intervals overlap")
+    positive_bed = bed.BedFile()
+    negative_bed = bed.BedFile()
+    for i, window in enumerate(outbed):
+        if i % 10000 == 0:
+            logging.warning("Checking interval %s"%i)
+        this_chrm = window["chrm"]
+        this_intervals = intervals[this_chrm]
+        window_interval = it.Interval(window["start"], window["end"])
+        perc_overlap = this_intervals.check_percent_overlap(window_interval)
+        if perc_overlap >= args.perc_overlap:
+            positive_bed.add_entry(window)
+        else:
+            negative_bed.add_entry(window)
+    # make fire file
+    fire = FIREfile()
+    out_fasta = fa.FastaFile()
+    for feature in positive_bed:
+        this_chrm = feature["chrm"]
+        this_name = feature["name"]
+        this_start = feature["start"]
+        this_end = feature["end"]
+        fire.add_entry(this_name, args.default_score)
+        out_fasta.add_entry(
+                fa.FastaEntry(">" + this_name, genome.pull_entry(this_chrm).pull_seq(this_start, this_end)))
+
+    for feature in negative_bed:
+        this_chrm = feature["chrm"]
+        this_name = feature["name"]
+        this_start = feature["start"]
+        this_end = feature["end"]
+        fire.add_entry(this_name, args.rand_score)
+        out_fasta.add_entry(
+                fa.FastaEntry(">" + this_name, genome.pull_entry(this_chrm).pull_seq(this_start, this_end)))
+
+    # write files
+    
+    if args.true_bed:
+        positive_bed.write_bed_file(args.outpre + "_true.bed")
+    if args.rand_bed:
+        negative_bed.write_bed_file(args.outpre + "_rand.bed")
+
+    if not args.no_fasta:
+        with open(args.outpre + ".fa") as outf:
+            out_fasta.write(outf)
+        
+    fire.write(args.outpre + "_fire.txt")
+
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
             description="Take a bed format file and pull seqs for FIRE format")
@@ -147,9 +240,9 @@ if __name__ == "__main__":
     parser.add_argument('outpre', type=str, help="output file prefix")
     parser.add_argument('--centered', action="store_true", 
             help="make window centered on feature center")
-    parser.add_argument('--upstream', type = int, default = 50,
+    parser.add_argument('--upstream', type = int, default = 0,
             help = "size of window upstream of specified start location or center if centered is specified")
-    parser.add_argument('--downstream', type = int, default = 50,
+    parser.add_argument('--downstream', type = int, default = 0,
             help = "size of window downstream of specified end location or center if centered is specified")
     parser.add_argument('--kfold', type=int, default=None, 
                         help="create k fold datasets for CV")
@@ -173,10 +266,23 @@ if __name__ == "__main__":
             help="allow random peaks to overlap? Default no overlap")
     parser.add_argument('--allow_true_overlap', action = "store_true",
             help="allow random peaks to overlap true peaks? Default no overlap")
+    parser.add_argument('--no_fasta', action = "store_true",
+            help="don't write fasta file")
+    parser.add_argument('--dense', action = "store_true",
+            help="Run program in dense mode")
+    parser.add_argument('--wsize', type = int, default = 100,
+            help="Size of window for dense mode, default = 100")
+    parser.add_argument('--stepsize', type = int, default = 25,
+            help="Step size for dense mode, default = 25")
+    parser.add_argument('--perc_overlap', type = float, default = 0.5,
+            help="Overlap cutoff for dense mode, default = 0.5")
 
 
     # parse arguments
     args = parser.parse_args()
+    if args.dense:
+        dense_sampling_main(args)
+        sys.exit()
     # figure out random seed
     np.random.seed(args.seed)
     # read in genome
@@ -189,6 +295,24 @@ if __name__ == "__main__":
     inbed = bed.BedFile()
     logging.warning("reading in bed")
     inbed.from_bed_file(args.bedfile)
+
+    # check how much of the genome the regions cover
+    genome_length = {}
+    total_length = 0
+    for chrm in genome:
+        genome_length[chrm] = len(chrm)
+        total_length += len(chrm)
+    feature_length = 0
+    for feature in inbed:
+        this_chrm = genome.pull_entry(feature["chrm"])
+        this_start, this_end, this_rc = determine_start_end(feature, this_chrm, args)
+        feature_length += this_end - this_start
+
+    fraction = feature_length / total_length
+    if fraction >= 0.05:
+        logging.warning("Input regions cover %0.2f %% of the genome. Consider using --dense"\
+                %(fraction*100))
+        
 
     # remove chr from chromosome names
     if args.rmchr:
