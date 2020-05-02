@@ -21,24 +21,28 @@ class FimoLine(object):
     def parse(self, line):
         linearr = line.rstrip().split('\t')
         self.patname = linearr[0]
-        self.seqname = linearr[1]
+        self.seqname = linearr[2]
         # converts to normal 0-based coordinates
-        self.start = int(linearr[2])-1
-        self.stop = int(linearr[3])
-        self.strand = linearr[4]
+        self.start = int(linearr[3])-1
+        self.stop = int(linearr[4])
+        self.strand = linearr[5]
         try:
-            self.score = float(linearr[5])
-        except ValueError:
+            self.score = float(linearr[6])
+        except IndexError:
             self.score = None
         try:
-            self.pvalue = float(linearr[6])
-        except ValueError:
+            self.pvalue = float(linearr[7])
+        except IndexError:
             self.pvalue = None
         try:
-            self.qvalue = float(linearr[7])
-        except ValueError:
+            self.qvalue = float(linearr[8])
+        except IndexError:
             self.qvalue=None
-        self.matchedseq=linearr[8]
+        try:
+            self.matchedseq=linearr[9]
+        except IndexError:
+            self.matchedseq = None
+            
 
 class FimoSeq(object):
 
@@ -57,7 +61,7 @@ class FimoSeq(object):
         return len(self.data)
 
     def find_lines(self, findfunc, findall=True):
-        matches = filter(findfunc, self.data)
+        matches = list(filter(findfunc, self.data))
         new_seq = FimoSeq(self.name)
         if len(matches) == 0:
             return new_seq
