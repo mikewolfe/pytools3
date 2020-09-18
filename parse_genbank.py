@@ -141,6 +141,40 @@ def out_bed(gb, features = ["CDS"], chrm = None, qual_name = "locus_tag"):
             outstr += str(convert_strandval(feature.location.strand)) + "\n"
             sys.stdout.write(outstr)
 
+def convert_qualifiers_to_string(qualifiers_dict):
+    outstr = ""
+    for key in qualifiers_dict:
+        outstr += "%s=%s;"%(key, ",".join(qualifiers_dict[key]))
+    return outstr[:-1]
+
+
+def out_gff(gb, features = ["CDS"], chrm = None):
+    if chrm:
+        name = str(chrm)
+    else:
+        name = str(gb.name)
+    sys.stdout.write("#gff-version 3\n")
+    for feature in gb.features:
+        if feature.type in features:
+            # skip features with partial ends
+            if check_partial_start(feature.location.start) or check_partial_end(feature.location.end):
+                continue
+            outstr = ""
+            outstr += name + "\t"
+            outstr += "." + "\t"
+            # we are not doing heiarchical relationships here so skip
+            # type
+            outstr += "." + "\t"
+            # gffs are in 1-based format
+            outstr += str(feature.location.start + 1) + "\t"
+            outstr += str(feature.location.end) + "\t"
+            outstr += "." + "\t"
+            outstr += str(convert_strandval(feature.location.strand)) + "\t"
+            outstr += "." + "\t"
+            # get all qualifiers
+            outstr += convert_qualifiers_to_string(feature.qualifiers) + "\n"
+            sys.stdout.write(outstr)
+
 def out_fasta(gb, features = ["CDS"], qual_name = "locus_tag"):
     import fasta as fa
     out_fasta = fa.FastaFile()
@@ -183,7 +217,7 @@ if __name__ == "__main__":
                         default = "bed")
     parser.add_argument('--features', type=str, nargs="+", help='''
     feature types to parse for. Can specify multiple. default = "CDS"
-    ''', default = "CDS")
+    ''', default = ["CDS"])
     parser.add_argument('--chrm', type=str, help='''
     specify the chromosome name for the output
     ''', default = None)
@@ -205,6 +239,8 @@ if __name__ == "__main__":
         out_bed(gb, features, chrm = chrm, qual_name = qual_name)
     elif ftype == "ptt" or ftype == "rnt":
         out_ptt_rnt(gb, ftype, chrm = chrm, qual_name = qual_name)
+    elif ftype == "gff":
+        out_gff(gb, features, chrm = chrm)
     elif ftype == "fna":
         out_fna(gb, chrm = chrm)
     else:
