@@ -52,7 +52,7 @@ def out_ptt_rnt(gb, ftype = "ptt", chrm = None, qual_name = "locus_tag"):
 
         outchrm = str(gb.id)
     if ftype == "rnt":
-        features = ["tRNA", "rRNA", "sRNA"]
+        features = ["tRNA", "rRNA", "ncRNA"]
         name =  "RNAs"
         unknown_name = "NA_RNA"
         length_func = lambda start, end: end - start
@@ -65,6 +65,7 @@ def out_ptt_rnt(gb, ftype = "ptt", chrm = None, qual_name = "locus_tag"):
         raise ValueError("Filetype %s not recognized"%ftype)
 
     all_features = []
+    ptt_rnt_name = set()
     for NA_num, feature in enumerate(gb.features):
         outstr = ""
         if feature.type in features:
@@ -76,7 +77,13 @@ def out_ptt_rnt(gb, ftype = "ptt", chrm = None, qual_name = "locus_tag"):
             # often times things need a gene name, thus will replace with locus tag or
             # if that doesn't exist. NA_number
             unique_name = str(feature.qualifiers.get(qual_name, ["%s_%d"%(unknown_name,NA_num)])[0])
-            outstr += str(feature.qualifiers.get(qual_name, [unique_name])[0]) + "\t"
+            num = 1
+            id_name = unique_name
+            while id_name in ptt_rnt_name:
+                id_name = unique_name + "_%d"%(num)
+                num += 1
+            ptt_rnt_name.add(id_name)
+            outstr += id_name + "\t"
             outstr += str(feature.qualifiers.get("gene", [unique_name])[0]) + "\t"
             outstr += str(feature.qualifiers.get("code", ["-"])[0]) + "\t"
             outstr += str(feature.qualifiers.get("cog", ["-"])[0]) + "\t"
@@ -89,33 +96,51 @@ def out_ptt_rnt(gb, ftype = "ptt", chrm = None, qual_name = "locus_tag"):
         sys.stdout.write(feature + "\n")
 
 
-
-def out_tsv(gb, chrm = None, qual_name = "locus_tag"):
+def out_tsv(gb, chrm = None, features = ["CDS"], qual_name = "locus_tag"):
+    """
+    Gives unique name, locus tag, gene name, and product for a given set
+    """
     if chrm:
         outchrm = str(chrm)
     else:
         outchrm = str(gb.name)
-    sys.stdout.write("chr\tstart\tend\tstrand\t%s\tprotein_id\tproduct\tseq\ttranslation\n"%qual_name)
-    for feature in gb.features:
+
+    sys.stdout.write("chr\tstart\tend\tstrand\tfeature_type\tunique_name\tlocus_tag\tprotein_id\tgene\tproduct\n")
+    tsv_name = set()
+    for NA_num, feature in enumerate(gb.features):
         outstr = ""
-        if feature.type == "CDS":
+        if feature.type in features:
+            # skip features with partial ends
+            if check_partial_start(feature.location.start) or check_partial_end(feature.location.end):
+                continue
             outstr += outchrm + "\t"
             outstr += str(feature.location.start) + "\t"
             outstr += str(feature.location.end) + "\t"
             outstr += str(convert_strandval(feature.location.strand)) + "\t"
-            outstr += str(feature.qualifiers.get(qual_name, ["NA"])[0]) + "\t"
+            outstr += str(feature.type) + "\t"
+            #figure out unique name
+            unique_name = str(feature.qualifiers.get(qual_name, ["%s_%d"%("NA",NA_num)])[0])
+            num = 1
+            id_name = unique_name
+            while id_name in tsv_name:
+                id_name = unique_name + "_%d"%(num)
+                num += 1
+            tsv_name.add(id_name)
+            outstr += id_name + "\t"
+            outstr += str(feature.qualifiers.get("locus_tag", ["NA"])[0]) + "\t"
             outstr += str(feature.qualifiers.get("protein_id", ["NA"])[0]) + "\t"
-            outstr += str(feature.qualifiers.get("product", ["NA"])[0]) + "\t"
-            # pull the nucleotide sequence
-            nuc_seq = feature.extract(gb.seq)
-            this_translation = nuc_seq.translate(table = "Bacterial", cds = True)
-            translation = str(feature.qualifiers['translation'][0])
-            # check that the translation matches the expected product. Have to drop the stop codon in
-            # the nucleotide translation
-            if not (this_translation == translation):
-                raise ValueError("Nucleotide sequence doesn't match translation\n%s\n%s"%(this_translation, translation))
-            outstr += str(nuc_seq) + "\t"
-            outstr += translation + "\n"
+            outstr += str(feature.qualifiers.get("gene", ["NA"])[0]) + "\t"
+            outstr += str(feature.qualifiers.get("product", ["NA"])[0]) + "\n"
+ #            # pull the nucleotide sequence
+ #            nuc_seq = feature.extract(gb.seq)
+ #            this_translation = nuc_seq.translate(table = "Bacterial", cds = True)
+ #            translation = str(feature.qualifiers['translation'][0])
+ #            # check that the translation matches the expected product. Have to drop the stop codon in
+ #            # the nucleotide translation
+ #            if not (this_translation == translation):
+ #                raise ValueError("Nucleotide sequence doesn't match translation\n%s\n%s"%(this_translation, translation))
+ #            outstr += str(nuc_seq) + "\t"
+ #            outstr += translation + "\n"
             sys.stdout.write(outstr)
 
 
@@ -124,6 +149,8 @@ def out_bed(gb, features = ["CDS"], chrm = None, qual_name = "locus_tag"):
         name = str(chrm)
     else:
         name = str(gb.name)
+
+    bed_name = set()
     for NA_num, feature in enumerate(gb.features):
         if feature.type in features:
             # skip features with partial ends
@@ -136,7 +163,13 @@ def out_bed(gb, features = ["CDS"], chrm = None, qual_name = "locus_tag"):
             # often times things need a gene name, thus will replace with locus tag or
             # if that doesn't exist. NA_number
             unique_name = str(feature.qualifiers.get(qual_name, ["%s_%d"%("NA",NA_num)])[0])
-            outstr += str(feature.qualifiers.get(qual_name, [unique_name])[0]) + "\t"
+            num = 1
+            id_name = unique_name
+            while id_name in bed_name:
+                id_name = unique_name + "_%d"%(num)
+                num += 1
+            bed_name.add(id_name)
+            outstr += id_name + "\t"
             outstr += "." + "\t"
             outstr += str(convert_strandval(feature.location.strand)) + "\n"
             sys.stdout.write(outstr)
@@ -178,12 +211,19 @@ def out_gff(gb, features = ["CDS"], chrm = None):
 def out_fasta(gb, features = ["CDS"], qual_name = "locus_tag"):
     import fasta as fa
     out_fasta = fa.FastaFile()
+    fa_name = set()
     for NA_num, feature in enumerate(gb.features):
         if feature.type in features:
             # often times things need a gene name, thus will replace with locus tag or
             # if that doesn't exist. NA_number
             unique_name = str(feature.qualifiers.get(qual_name, ["%s_%d"%("NA",NA_num)])[0])
-            header = ">" + str(feature.qualifiers.get(qual_name, [unique_name])[0]) + \
+            num = 1
+            id_name = unique_name
+            while id_name in fa_name:
+                id_name = unique_name + "_%d"%(num)
+                num += 1
+            fa_name.add(id_name)
+            header = ">" + id_name + \
             " " +  \
             str(feature.qualifiers.get("product", ["NA"])[0])
             seq = str(feature.extract(gb.seq))
@@ -213,7 +253,7 @@ if __name__ == "__main__":
                                                     bed gives each feature in bed format.
                                                     fna pulls the full nucleotide sequence.
                                                     Note that tsv is a special format
-                                                    that only pulls CDS's and their translation''',
+                                                    that pulls several fields for a given query''',
                         default = "bed")
     parser.add_argument('--features', type=str, nargs="+", help='''
     feature types to parse for. Can specify multiple. default = "CDS"
@@ -243,5 +283,5 @@ if __name__ == "__main__":
         out_gff(gb, features, chrm = chrm)
     elif ftype == "fna":
         out_fna(gb, chrm = chrm)
-    else:
-        out_tsv(gb, chrm = chrm, qual_name = qual_name)
+    elif ftype == "tsv":
+        out_tsv(gb, chrm = chrm, features = features, qual_name = qual_name)
