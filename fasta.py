@@ -53,6 +53,10 @@ class FastaEntry(object):
     def __str__(self):
         return "<FastaEntry>" + self.chrm_name() + ":" + str(len(self))
 
+    def __iter__(self):
+        for val in self.seq:
+            yield val
+
     def write(self,fhandle):
         fhandle.write(self.header+"\n")
         for i in range(0,len(self), 70):
