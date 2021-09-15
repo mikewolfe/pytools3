@@ -66,10 +66,12 @@ class FastqFile(object):
     def write(self, outfile):
         if type(outfile) is str and outfile.endswith(".gz"):
             fhandle = gzip.open(outfile, mode = "wb")
+            for entry in self:
+                fhandle.write(str(entry).encode())
         else:
             fhandle = open(outfile, mode = "w")
-        for entry in self:
-            fhandle.write(str(entry))
+            for entry in self:
+                fhandle.write(str(entry))
 
     def __iter__(self):
         for name in self.names:
