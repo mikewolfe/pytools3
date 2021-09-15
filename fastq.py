@@ -65,9 +65,9 @@ class FastqFile(object):
 
     def write(self, outfile):
         if type(outfile) is str and outfile.endswith(".gz"):
-            fhandle = gzip.open(self.infile, mode = "wb")
+            fhandle = gzip.open(outfile, mode = "wb")
         else:
-            fhandle = open(self.infile, mode = "w")
+            fhandle = open(outfile, mode = "w")
         for entry in self:
             fhandle.write(str(entry))
 
@@ -101,7 +101,7 @@ if __name__ == "__main__":
         infile = int(infile)
 
     outfile = sys.argv[2]
-    if infile == "1":
+    if outfile == "1":
         outfile = int(outfile)
 
     this_file = FastqFile(infile)
