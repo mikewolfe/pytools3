@@ -87,7 +87,7 @@ class GffData:
   def __iter__(self):
     return self
 
-  def next(self):
+  def __next__(self):
     if self.index == len(self.data):
       self.index = 0
       raise StopIteration

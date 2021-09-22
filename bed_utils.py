@@ -83,6 +83,15 @@ class BedFile(object):
         for datum in self.data:
             yield datum
 
+    def __getitem__(self, key):
+        if isinstance(key, slice):
+            for val in range(key.start, key.stop, key.step):
+                out = BedFile()
+                BedFile.add_entry(self.data[val])
+        else:
+            out = self.data[key]
+        return out
+
     def __len__(self):
         return len(self.data)
 
