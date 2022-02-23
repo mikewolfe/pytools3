@@ -6,6 +6,24 @@ Written by Michael Wolfe
 import gzip
 from itertools import islice
 
+def check_unique(fastq_file):
+    name_dict = {}
+    count_dict = {}
+    this_file = FastqFile(fastq_file)
+    for entry in this_file.stream_file():
+        name_count = name_dict.get(entry.name, 0)
+        name_dict[entry.name] = name_count + 1 
+    for name, name_count in name_dict.items():
+        histogram_count = count_dict.get(name_count, 0)
+        count_dict[name_count] = histogram_count + 1
+    print("Name_count\tHistogram_count")
+    for key in sorted(count_dict):
+        print("%s\t%s"%(key, count_dict[key]))
+
+        
+
+
+
 
 class FastqEntry(object):
     """
@@ -48,6 +66,8 @@ class FastqFile(object):
             else:
                 break
         fhandle.close()
+        if len(self.names()) != len(self.data):
+            raise ValueError("Duplicate read names found in file")
 
     def stream_file(self):
         if type(self.infile) is str and self.infile.endswith(".gz"):
@@ -106,6 +126,10 @@ if __name__ == "__main__":
     if outfile == "1":
         outfile = int(outfile)
 
+
     this_file = FastqFile(infile)
-    for entry in this_file.stream_file():
-        print(entry)
+    if len(sys.argv) > 3:
+        check_unique(infile)
+    else:
+        for entry in this_file.stream_file():
+            print(entry)
