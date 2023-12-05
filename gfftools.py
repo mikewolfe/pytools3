@@ -18,10 +18,10 @@ def make_comment_dict(gff_entry):
     keyvalue = gff_entry.comments.split(";")
     for pair in keyvalue:
         key_value= newSplit(pair)
-        key = key_value[0]
         if len(key_value) < 2:
             value = ""
         else:
+            key = key_value[0]
             value = "".join(key_value[1:])
             value = value.replace('"', "")
         gff_entry.comment_dict[key] = value
@@ -150,13 +150,14 @@ class GffData:
 
     self.data.append(newobj)
 
-  def to_bedfile(self, filename):
+  def to_bedfile(self, filename, ID_field = "ID"):
 
     ostr = open(filename, "w")
     #chrom,start,end,name,score,strand
     outfmt="%s\t%i\t%i\t%s\t%s\t%s\n"
     for line in self:
-      this_line=outfmt%(line.genome_name, line.start-1, line.end, line.site_type,".",line.direction)
+      comment_dict = make_comment_dict(line)
+      this_line=outfmt%(line.genome_name, line.start-1, line.end, line.comment_dict[ID_field],".",line.direction)
       ostr.write(this_line)
 
     ostr.close()
@@ -188,4 +189,12 @@ class GffData:
 
     self.data.append(new_entry)
 
-
+if __name__ == "__main__":
+    # convert gff to bed file
+    import sys
+    infile = sys.argv[1]
+    outfile = sys.argv[2]
+    ID_field = sys.argv[3]
+    ingff = GffData()
+    ingff.parse_gff_file(infile)
+    ingff.to_bedfile(outfile, ID_field)
