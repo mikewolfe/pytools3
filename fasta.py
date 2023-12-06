@@ -57,6 +57,10 @@ class FastaEntry(object):
         for val in self.seq:
             yield val
 
+    def window_iter(self, wsize = 1):
+        for loc in range(len(self.seq) - wsize + 1):
+            yield self.seq[loc:loc + wsize]
+
     def write(self,fhandle):
         fhandle.write(self.header+"\n")
         for i in range(0,len(self), 70):
