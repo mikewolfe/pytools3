@@ -95,7 +95,7 @@ def robustz_1D(array, ignore_nan = True):
         MAD = stats.median_abs_deviation(array, nan_policy='omit', scale = 'normal')
         median = np.nanmedian(array)
     else:
-        MAD = stats.median_absolute_deviation(array)
+        MAD = stats.median_abs_deviation(array)
         median = np.median(array)
     return normalize_1D(array, median, MAD)
 

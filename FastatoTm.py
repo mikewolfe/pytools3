@@ -95,7 +95,7 @@ if __name__ == "__main__":
                 nn_table = ab_nuc[args.nuc_type], \
                 Na = args.Na, Tris = args.Tris, \
                 Mg = args.Mg, strand = args.strand, dNTPs = args.dNTPs, \
-                dnac1 = args.conc1, dnac2 = args.conc2), args.window, args.infile, args.outfile)
+                dnac1 = args.conc1, dnac2 = args.conc2), args.window, ffile, args.outfile)
 
     
 

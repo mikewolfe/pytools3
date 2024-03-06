@@ -225,7 +225,7 @@ def dense_sampling_main(args):
         negative_bed.write_bed_file(args.outpre + "_rand.bed")
 
     if not args.no_fasta:
-        with open(args.outpre + ".fa") as outf:
+        with open(args.outpre + ".fa", mode = "w") as outf:
             out_fasta.write(outf)
         
     fire.write(args.outpre + "_fire.txt")
