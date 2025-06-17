@@ -96,7 +96,7 @@ def out_ptt_rnt(gb, ftype = "ptt", chrm = None, qual_names = ["locus_tag"]):
         sys.stdout.write(feature + "\n")
 
 
-def out_tsv(gb, chrm = None, features = ["CDS"], qual_names = ["locus_tag"]):
+def out_tsv(gb, chrm = None, features = ["CDS"], qual_names = ["locus_tag"], translate = False, translate_table = "Standard"):
     """
     Gives unique name, locus tag, gene name, and product for a given set
     """
@@ -104,8 +104,10 @@ def out_tsv(gb, chrm = None, features = ["CDS"], qual_names = ["locus_tag"]):
         outchrm = str(chrm)
     else:
         outchrm = str(gb.name)
-
-    sys.stdout.write("chr\tstart\tend\tstrand\tfeature_type\tunique_name\tlocus_tag\tprotein_id\tgene\tproduct\n")
+    if not translate:
+        sys.stdout.write("chr\tstart\tend\tstrand\tfeature_type\tunique_name\tlocus_tag\tprotein_id\tgene\tproduct\n")
+    else:
+        sys.stdout.write("chr\tstart\tend\tstrand\tfeature_type\tunique_name\tlocus_tag\tprotein_id\tgene\tproduct\tnuc_seq\ttranslation\n")
     tsv_name = set()
     for feature in gb.features:
         outstr = ""
@@ -131,16 +133,17 @@ def out_tsv(gb, chrm = None, features = ["CDS"], qual_names = ["locus_tag"]):
             outstr += str(feature.qualifiers.get("protein_id", ["NA"])[0]) + "\t"
             outstr += str(feature.qualifiers.get("gene", ["NA"])[0]) + "\t"
             outstr += str(feature.qualifiers.get("product", ["NA"])[0]) + "\n"
- #            # pull the nucleotide sequence
- #            nuc_seq = feature.extract(gb.seq)
- #            this_translation = nuc_seq.translate(table = "Bacterial", cds = True)
- #            translation = str(feature.qualifiers['translation'][0])
- #            # check that the translation matches the expected product. Have to drop the stop codon in
- #            # the nucleotide translation
- #            if not (this_translation == translation):
- #                raise ValueError("Nucleotide sequence doesn't match translation\n%s\n%s"%(this_translation, translation))
- #            outstr += str(nuc_seq) + "\t"
- #            outstr += translation + "\n"
+            if translate:
+                # pull the nucleotide sequence
+                nuc_seq = feature.extract(gb.seq)
+                this_translation = nuc_seq.translate(table = translate_table, cds = True)
+                translation = str(feature.qualifiers.get('translation', ["NA"])[0])
+                # check that the translation matches the expected product. Have to drop the stop codon in
+                # the nucleotide translation
+                if translation != "NA" and not (this_translation == translation):
+                    raise ValueError("Nucleotide sequence doesn't match translation\n%s\n%s"%(this_translation, translation))
+                outstr += str(nuc_seq) + "\t"
+                outstr += str(this_translation) + "\n"
             sys.stdout.write(outstr)
 
 
@@ -298,6 +301,8 @@ if __name__ == "__main__":
     parser.add_argument('--qual_name', type=str, nargs = "+", help='''
     which qualifier fields to parse to get name of feature? If multiple are listed, will check in order until a field is filled in. Default = locus_tag
     ''', default = "locus_tag")
+    parser.add_argument('--translate', action = "store_true", help= "translate sequence?")
+    parser.add_argument('--translate_table', type = str, default = "Standard", help = "which translation table? Default = Standard")
     args = parser.parse_args()
 
     fname = args.infile
@@ -318,4 +323,4 @@ if __name__ == "__main__":
     elif ftype == "fna":
         out_fna(gb, chrm = chrm)
     elif ftype == "tsv":
-        out_tsv(gb, chrm = chrm, features = features, qual_names = qual_name)
+        out_tsv(gb, chrm = chrm, features = features, qual_names = qual_name, translate = args.translate, translate_table = args.translate_table)
